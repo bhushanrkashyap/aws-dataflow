@@ -1,0 +1,241 @@
+{
+	"jobConfig": {
+		"name": "myfirstjob",
+		"description": "",
+		"role": "arn:aws:iam::872515253888:role/databricks-bhushanrkashyap1",
+		"command": "glueetl",
+		"version": "5.0",
+		"runtime": null,
+		"workerType": "G.1X",
+		"numberOfWorkers": 10,
+		"maxCapacity": 10,
+		"jobRunQueuingEnabled": false,
+		"maxRetries": 0,
+		"timeout": 480,
+		"maxConcurrentRuns": 1,
+		"security": "none",
+		"scriptName": "myfirstjob.py",
+		"scriptLocation": "s3://aws-glue-assets-872515253888-us-east-1/scripts/",
+		"language": "python-3",
+		"spark": true,
+		"sparkConfiguration": "standard",
+		"jobParameters": [],
+		"tags": [],
+		"jobMode": "VISUAL_MODE",
+		"createdOn": "2025-10-27T12:04:31.290Z",
+		"developerMode": false,
+		"connectionsList": [],
+		"temporaryDirectory": "s3://aws-glue-assets-872515253888-us-east-1/temporary/",
+		"glueHiveMetastore": true,
+		"etlAutoTuning": true,
+		"metrics": true,
+		"observabilityMetrics": true,
+		"bookmark": "job-bookmark-disable",
+		"sparkPath": "s3://aws-glue-assets-872515253888-us-east-1/sparkHistoryLogs/",
+		"flexExecution": false,
+		"minFlexWorkers": null,
+		"sourceControlDetails": {
+			"Provider": "GITHUB"
+		},
+		"maintenanceWindow": null,
+		"pythonPath": "",
+		"dependentPath": "",
+		"additionalPythonModules": "",
+		"dataLineage": false,
+		"logging": false
+	},
+	"dag": {
+		"node-1761566516970": {
+			"nodeId": "node-1761566516970",
+			"dataPreview": false,
+			"previewAmount": 0,
+			"inputs": [
+				"node-1761566477953"
+			],
+			"name": "Aggregate",
+			"generatedNodeName": "Aggregate_node1761566516970",
+			"classification": "Transform",
+			"type": "Aggregate",
+			"parentsValid": true,
+			"calculatedType": "",
+			"groups": [
+				"open",
+				"low"
+			],
+			"aggs": [
+				{
+					"column": "high",
+					"aggFunc": "avg"
+				}
+			],
+			"codeGenVersion": 2
+		},
+		"node-1761566609719": {
+			"nodeId": "node-1761566609719",
+			"dataPreview": false,
+			"previewAmount": 0,
+			"inputs": [
+				"node-1761566516970"
+			],
+			"name": "Amazon S3",
+			"generatedNodeName": "AmazonS3_node1761566609719",
+			"classification": "DataSink",
+			"type": "S3",
+			"streamingBatchInterval": 100,
+			"format": "csv",
+			"compression": "none",
+			"numberTargetPartitions": "0",
+			"path": "s3://csvbucketdatabricks/processed_data/",
+			"partitionKeys": [],
+			"schemaChangePolicy": {
+				"enableUpdateCatalog": false,
+				"updateBehavior": null,
+				"database": null,
+				"table": null
+			},
+			"updateCatalogOptions": "none",
+			"autoDataQuality": {
+				"isEnabled": true,
+				"evaluationContext": "EvaluateDataQuality_node1761565962041"
+			},
+			"calculatedType": "",
+			"codeGenVersion": 2
+		},
+		"node-1761566469687": {
+			"nodeId": "node-1761566469687",
+			"dataPreview": false,
+			"previewAmount": 0,
+			"inputs": [
+				"node-1761566299551"
+			],
+			"name": "Drop Duplicates",
+			"generatedNodeName": "DropDuplicates_node1761566469687",
+			"classification": "Transform",
+			"type": "DropDuplicates",
+			"parentsValid": true,
+			"calculatedType": "",
+			"columns": [],
+			"codeGenVersion": 2
+		},
+		"node-1761566299551": {
+			"nodeId": "node-1761566299551",
+			"dataPreview": false,
+			"previewAmount": 0,
+			"inputs": [],
+			"name": "Amazon S3",
+			"generatedNodeName": "AmazonS3_node1761566299551",
+			"classification": "DataSource",
+			"type": "S3",
+			"isCatalog": false,
+			"format": "csv",
+			"paths": [
+				"s3://csvbucketdatabricks/ohlcv/"
+			],
+			"compressionType": null,
+			"exclusions": [],
+			"groupFiles": null,
+			"groupSize": null,
+			"recurse": true,
+			"maxBand": null,
+			"maxFilesInBand": null,
+			"additionalOptions": {
+				"boundedSize": null,
+				"boundedFiles": null,
+				"enableSamplePath": false,
+				"samplePath": "s3://csvbucketdatabricks/ohlcv/AAPL.csv",
+				"boundedOption": null
+			},
+			"separator": ",",
+			"escaper": "",
+			"quoteChar": "\"",
+			"multiline": null,
+			"withHeader": true,
+			"writeHeader": null,
+			"skipFirst": null,
+			"optimizePerformance": false,
+			"outputSchemas": [
+				[
+					{
+						"key": "date",
+						"fullPath": [
+							"date"
+						],
+						"type": "string",
+						"glueStudioType": null,
+						"children": null
+					},
+					{
+						"key": "open",
+						"fullPath": [
+							"open"
+						],
+						"type": "string",
+						"glueStudioType": null,
+						"children": null
+					},
+					{
+						"key": "high",
+						"fullPath": [
+							"high"
+						],
+						"type": "string",
+						"glueStudioType": null,
+						"children": null
+					},
+					{
+						"key": "low",
+						"fullPath": [
+							"low"
+						],
+						"type": "string",
+						"glueStudioType": null,
+						"children": null
+					},
+					{
+						"key": "close",
+						"fullPath": [
+							"close"
+						],
+						"type": "string",
+						"glueStudioType": null,
+						"children": null
+					},
+					{
+						"key": "volume",
+						"fullPath": [
+							"volume"
+						],
+						"type": "string",
+						"glueStudioType": null,
+						"children": null
+					}
+				]
+			],
+			"calculatedType": "",
+			"codeGenVersion": 2
+		},
+		"node-1761566477953": {
+			"nodeId": "node-1761566477953",
+			"dataPreview": false,
+			"previewAmount": 0,
+			"inputs": [
+				"node-1761566469687"
+			],
+			"name": "Drop Null Fields",
+			"generatedNodeName": "DropNullFields_node1761566477953",
+			"classification": "Transform",
+			"type": "DropNullFields",
+			"nullCheckBoxList": {
+				"isEmpty": false,
+				"isNullString": null,
+				"isNegOne": false
+			},
+			"nullTextList": [],
+			"parentsValid": true,
+			"calculatedType": "",
+			"codeGenVersion": 2
+		}
+	},
+	"hasBeenSaved": false,
+	"usageProfileName": null
+}
