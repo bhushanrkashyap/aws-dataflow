@@ -1,5 +1,5 @@
-# 📊 OHLCV AWS Data Pipeline
-A simple, serverless AWS pipeline that ingests, cleans, and visualizes **financial OHLCV data**.
+# 📊AWS Data Pipeline
+A simple, serverless AWS pipeline that ingests, cleans, and visualizes **financial OHLCV (Open , High , Low , Close , Volume)data**.
 <p align="center"><img src="./architecture/architecture.png" width="700" alt="Architecture diagram"/></p>
 
 
@@ -40,11 +40,3 @@ Notes:
 - Query: Athena for serverless SQL queries over the transformed data.
 - Visualization: QuickSight dashboards for charts and insights.
 - Monitoring: CloudWatch for logs and alarms.
-
-## Contributing
-
-Contributions welcome. Please open issues or pull requests for improvements, bug fixes, or documentation updates.
-
----
-
-If you'd like, I can also add a `.gitignore` tuned for Python and Jupyter notebooks and a short CONTRIBUTING.md.
