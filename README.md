@@ -1,53 +1,3 @@
----
-# AWS Serverless OHLCV Data Engine
-
-[![Python](https://img.shields.io/badge/Python-3.8%2B-blue)](https://www.python.org/)
-[![AWS Glue](https://img.shields.io/badge/AWS%20Glue-Serverless-orange)](https://aws.amazon.com/glue/)
-[![Athena](https://img.shields.io/badge/Athena-Serverless-purple)](https://aws.amazon.com/athena/)
-
-Overview
---------
-This repository implements a production-ready, serverless data engine that ingests OHLCV time-series, performs ETL and data quality operations, catalogs data for querying, and exposes analytics to business users via QuickSight.
-
-System Architecture
--------------------
-
-```mermaid
-graph LR
-  API[External API: Twelve Data] --> Ingest(Ingestion: Lambda / Notebook)
-  Ingest --> Raw[S3 Raw Zone]
-  Raw --> Glue(AWS Glue ETL)
-  Glue --> Processed[S3 Processed Zone]
-  Processed --> Athena(Amazon Athena)
-  Athena --> QuickSight(Amazon QuickSight)
-  Glue --> Catalog(Glue Data Catalog)
-  subgraph Observability
-    CloudWatch[CloudWatch Logs & Metrics]
-    Catalog -- updates --> CloudWatch
-  end
-```
-
-Rendered architecture (PNG):
-
-![Architecture diagram](docs/assets/diagrams/image.png)
-
-Visual assets
--------------
-- QuickSight dashboards: `docs/assets/dashboards/` (1.png, 2.png, 4.png, 6.png)
-- Glue-specific diagrams: `docs/assets/glue/` (gluejob.png, jobruns.png, monitoring_glue.png)
-- Monitoring screenshots: `docs/assets/monitoring/` (`image.png`, `image copy.png`)
-- Glue data-quality checks: `docs/assets/glue/data_quality_checks.png`
-
-Project layout
---------------
-```text
-aws-dataflow/
-├─ notebooks/                # exploratory notebooks and ingestion PoCs
-├─ src/
-│  └─ etl/
-│     └─ jobs/               # Glue job scripts (production-ready)
-├─ sql/
----
 # AWS Serverless OHLCV Data Engine
 
 [![Python](https://img.shields.io/badge/Python-3.8%2B-blue)](https://www.python.org/)
@@ -117,5 +67,4 @@ How to run (quick)
 ```bash
 aws glue start-job-run --job-name my-glue-job --arguments '--S3_INPUT=s3://mybucket/raw/ --S3_OUTPUT=s3://mybucket/processed/'
 ```
-
 
