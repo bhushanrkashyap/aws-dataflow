@@ -1,6 +1,7 @@
-# 🧠 Stage 3: Athena Queries
-Query processed data using **Amazon Athena**.
+# Docs Index
+This folder contains module-level documentation for the pipeline. Use these pages as a reference for architecture, ETL, and query notes.
 
-```sql
-SELECT symbol, AVG(close) AS avg_close FROM ohlcv_processed GROUP BY symbol;
-```
+- [Architecture](./architecture/README.md)
+- [Glue ETL notes](./glue/README.md)
+- [Athena queries](../sql/queries/athena_queries.sql)
+
