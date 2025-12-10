@@ -1,42 +1,122 @@
 # AWS Dataflow — Serverless ETL & Analytics Pipeline
 
-![Architecture diagram](architecture/image.png)
+# AWS Serverless OHLCV Data Engine
 
-This repository demonstrates a fully automated, serverless ETL and analytics pipeline built on AWS. The pipeline ingests OHLCV financial time-series data from external APIs, processes and validates the data with AWS Glue, catalogs it, and provides analytics via Amazon Athena and QuickSight — all while maintaining monitoring and observability with CloudWatch.
+[![Python](https://img.shields.io/badge/Python-3.8%2B-blue)](https://www.python.org/)
+[![AWS Glue](https://img.shields.io/badge/AWS%20Glue-Serverless-orange)](https://aws.amazon.com/glue/)
+[![Athena](https://img.shields.io/badge/Athena-Serverless-purple)](https://aws.amazon.com/athena/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-green)](LICENSE)
 
-**Table of contents**
-- **Architecture:** Overview and diagram
-- **Data Ingestion:** Databricks notebook + Twelve Data API
-- **AWS Glue:** ETL jobs, data quality, and Glue Catalog
-- **Athena:** SQL queries and sample insights (`3.athena/athena_queries.sql`)
-- **QuickSight:** Example visualizations
-- **Monitoring:** CloudWatch logs, metrics, dashboards
-- **Files of interest:** `1.ingestion/ingestion.ipynb`, `2.glue/scripts/gluejob.py`, `3.athena/athena_queries.sql`
+Overview
+--------
+This repository implements an enterprise-grade, serverless data engine for OHLCV financial time-series. The engine is designed for production workloads: clear separation of ingestion, ETL, cataloging, analytics, visualization, and monitoring responsibilities.
 
-## Repository structure
+System Architecture (Mermaid)
+--------------------------------
+```mermaid
+graph LR
+	A[External API: Twelve Data] --> B(Ingestion: Lambda / Notebook)
+	B --> C[S3 Raw Zone]
+	C --> D(AWS Glue ETL)
+	D --> E[S3 Processed Zone]
+	E --> F(Amazon Athena)
+	F --> G(Amazon QuickSight)
+	D --> H(Glue Data Catalog)
+	subgraph Observability
+		I[CloudWatch Logs & Metrics]
+		H -- updates --> I
+	end
+```
 
-Top-level folders and purpose:
+Note: visual assets exist under `docs/assets/diagrams` and `docs/assets/dashboards` for reference and reporting screenshots.
 
-- `1.ingestion/` — ingestion notebooks and scripts (data collection)
-- `2.glue/` — AWS Glue job code and job definitions
-- `3.athena/` — Athena queries and example SQL
-- `4.quicksight/` — QuickSight dashboards and assets
-- `architecture/` — architecture diagram and notes
+Project structure (cleaned)
+---------------------------
+```text
+aws-dataflow/
+├─ notebooks/
+│  └─ exploration/           # interactive notebooks and ingestion proof-of-concept
+├─ src/
+│  └─ etl/
++     └─ jobs/               # Glue job scripts (python files)
+├─ sql/
+│  └─ queries/               # Athena SQL queries
+├─ docs/
+│  └─ assets/
+│     ├─ dashboards/         # QuickSight exports and screenshots
+│     ├─ diagrams/           # Architecture diagrams (png/svg)
+│     └─ monitoring/         # CloudWatch dashboard images and logs
+├─ scripts/                  # utility scripts (restructure, deploy helpers)
+├─ requirements.txt
+└─ README.md
+```
 
-## Quick start
+Pipeline Components — Technical Deep Dive
+----------------------------------------
 
-1. Open the ingestion notebook at `1.ingestion/ingestion.ipynb` to run or preview sample ingestion.
-2. The Glue job implementation is in `2.glue/scripts/gluejob.py`.
-3. Run Athena queries from `3.athena/athena_queries.sql` against the prepared datasets.
+- Ingestion (Lambda / Notebook)
+	- Retrieves OHLCV timeseries from the Twelve Data API with resilient retries and exponential backoff.
+	- Normalizes incoming payloads to a canonical JSON schema.
+	- Partitions raw files into `s3://<bucket>/raw/source=twelvedata/date=YYYY-MM-DD/`.
 
-Notes:
-- This repo contains code and docs; AWS credentials, roles, and cloud resources are required to deploy/run the pipeline.
-- For production use, create dedicated IAM roles, S3 buckets, and Glue/Athena configurations.
+- Glue ETL (Python/Glue Spark)
+	- Standardizes timestamp formats to UTC ISO-8601 and enforces a schema (timestamp, symbol, open, high, low, close, volume).
+	- Deduplication: dedupes records by (instrument_id, timestamp, trade_id) using deterministic sort+drop_duplicates window.
+	- Data typing & casting: enforces numeric types, null-safe conversions, and currency/scale normalization.
+	- Enrichments: adds derived fields (daily_return, pct_change, vwap) and maps instrument metadata.
+	- Aggregations: produces hourly/daily aggregates for volume and OHLC rollups.
+	- Outputs: writes Parquet partitioned by `date` and `symbol` into `s3://<bucket>/processed/`.
 
-## Components
+- Glue Data Catalog
+	- Glue Crawler or Glue API updates table schemas after ETL runs to ensure compatible Athena queries.
 
-- Ingestion: Python notebooks to fetch and prepare raw OHLCV data.
-- ETL: AWS Glue jobs to clean and transform data into a queryable format.
-- Query: Athena for serverless SQL queries over the transformed data.
-- Visualization: QuickSight dashboards for charts and insights.
-- Monitoring: CloudWatch for logs and alarms.
+- Athena (Ad-hoc + Scheduled)
+	- Executes analytics queries on Parquet data; best practices include partition pruning and CTAS patterns for heavy queries.
+	- Example queries live under `sql/queries/` (returns, volatility windows, top movers).
+
+- QuickSight
+	- Uses Athena datasets; dashboards export PNGs/SVGs to `docs/assets/dashboards/` for documentation.
+
+- Observability (CloudWatch)
+	- ETL job durations, failure rates, S3 ingestion metrics, and custom Glue job logs are captured in CloudWatch.
+	- Alarms notify on job failures and ingestion anomalies (high API latency, large error rates).
+
+Prerequisites & Permissions
+---------------------------
+
+Minimum AWS IAM permissions (example roles/policy scope):
+
+- S3: `s3:GetObject`, `s3:PutObject`, `s3:ListBucket`, `s3:DeleteObject` for raw and processed buckets
+- Glue: `glue:CreateJob`, `glue:StartJobRun`, `glue:GetJobRun`, `glue:CreateCrawler`, `glue:GetTable`, `glue:UpdateTable`
+- Athena: `athena:StartQueryExecution`, `athena:GetQueryExecution`, `athena:GetQueryResults`
+- CloudWatch: `logs:CreateLogGroup`, `logs:CreateLogStream`, `logs:PutLogEvents`, `cloudwatch:PutMetricAlarm`
+- IAM: ability to assume roles required by Glue and Lambda (limited to administrators/infra team)
+
+How to run the Glue job locally (developer flow)
+---------------------------------------------
+
+1. Edit configuration placeholders (S3 bucket names, Glue database) in `src/etl/jobs/` or environment variables.
+2. Use the provided Glue local runner or test harness (if available) to validate transformations. Example (unit test approach):
+
+```bash
+# run local unit tests / small Spark run (example)
+pytest tests/ -q
+```
+
+3. To execute the Glue job in AWS (console or CLI):
+
+```bash
+# submit a Glue job run (example)
+aws glue start-job-run --job-name my-glue-job --arguments '--S3_INPUT=s3://mybucket/raw/ --S3_OUTPUT=s3://mybucket/processed/'
+```
+
+4. Verify Glue job status and logs in CloudWatch and check the output partitions in S3.
+
+Notes & Next actions
+--------------------
+- The repo contains visual assets in `docs/assets/diagrams` and `docs/assets/dashboards`. For public documentation, prefer SVG exports for crispness.
+- I added `scripts/restructure.sh` — run it locally to perform the reorganization. Review staged changes before committing.
+
+If you want, I can:
+- run the restructure for you and commit the changes, or
+- convert `architecture/image.png` to a high-resolution SVG and reference it in `docs/`.

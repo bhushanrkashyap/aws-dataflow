@@ -1,0 +1,8 @@
+boto3>=1.26
+awscli>=1.29
+pandas>=2.0
+pyarrow>=11.0
+awswrangler>=3.0
+pyspark>=3.1.2
+pytest>=7.0
+fastparquet>=2023.12.0
