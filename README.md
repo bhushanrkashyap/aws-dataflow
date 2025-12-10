@@ -35,7 +35,8 @@ Visual assets
 -------------
 - QuickSight dashboards: `docs/assets/dashboards/` (1.png, 2.png, 4.png, 6.png)
 - Glue-specific diagrams: `docs/assets/glue/` (gluejob.png, jobruns.png, monitoring_glue.png)
-- Monitoring screenshots: `docs/assets/monitoring/` (data_quality_checks.png, image.png, image copy.png)
+- Monitoring screenshots: `docs/assets/monitoring/` (`image.png`, `image copy.png`)
+- Glue data-quality checks: `docs/assets/glue/data_quality_checks.png`
 
 Project layout
 --------------
@@ -68,7 +69,8 @@ Visual assets
 -------------
 - QuickSight dashboards: `docs/assets/dashboards/` (`1.png`, `2.png`, `4.png`, `6.png`)
 - Glue diagrams: `docs/assets/glue/` (`gluejob.png`, `jobruns.png`, `monitoring_glue.png`)
-- Monitoring screenshots: `docs/assets/monitoring/` (`data_quality_checks.png`, `image.png`)
+- Monitoring screenshots: `docs/assets/monitoring/` (`image.png`)
+- Glue data-quality checks: `docs/assets/glue/data_quality_checks.png`
 
 Project layout
 --------------
