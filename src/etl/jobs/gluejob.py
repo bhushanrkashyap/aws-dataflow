@@ -1,82 +1,147 @@
+"""Glue ETL job: clean, dedupe, aggregate, and write processed OHLCV data.
+
+This version refactors the original Glue script to improve readability, add
+basic logging, and provide clearer function interfaces. It is intended to be
+used as a template — adapt configuration (S3 paths, job name) to your
+environment before deployment.
+"""
+from __future__ import annotations
+
+import logging
 import sys
-from awsglue.transforms import *
-from awsglue.utils import getResolvedOptions
-from pyspark.context import SparkContext
+from typing import Iterable, List, Tuple
+
 from awsglue.context import GlueContext
 from awsglue.job import Job
-from awsglue.gluetypes import *
-from awsgluedq.transforms import EvaluateDataQuality
+from awsglue.transforms import DropFields
+from awsglue.utils import getResolvedOptions
 from awsglue.dynamicframe import DynamicFrame
-from awsglue import DynamicFrame
-from pyspark.sql import functions as SqlFuncs
+from awsgluedq.transforms import EvaluateDataQuality
+from pyspark.context import SparkContext
+from pyspark.sql import functions as F
+from pyspark.sql.types import (
+    ArrayType,
+    DoubleType,
+    IntegerType,
+    LongType,
+    NullType,
+    StringType,
+    StructType,
+)
 
-def _find_null_fields(ctx, schema, path, output, nullStringSet, nullIntegerSet, frame):
-    if isinstance(schema, StructType):
-        for field in schema:
-            new_path = path + "." if path != "" else path
-            output = _find_null_fields(ctx, field.dataType, new_path + field.name, output, nullStringSet, nullIntegerSet, frame)
-    elif isinstance(schema, ArrayType):
-        if isinstance(schema.elementType, StructType):
-            output = _find_null_fields(ctx, schema.elementType, path, output, nullStringSet, nullIntegerSet, frame)
-    elif isinstance(schema, NullType):
-        output.append(path)
-    else:
-        x, distinct_set = frame.toDF(), set()
-        for i in x.select(path).distinct().collect():
-            distinct_ = i[path.split('.')[-1]]
-            if isinstance(distinct_, list):
-                distinct_set |= set([item.strip() if isinstance(item, str) else item for item in distinct_])
-            elif isinstance(distinct_, str) :
-                distinct_set.add(distinct_.strip())
-            else:
-                distinct_set.add(distinct_)
-        if isinstance(schema, StringType):
-            if distinct_set.issubset(nullStringSet):
-                output.append(path)
-        elif isinstance(schema, IntegerType) or isinstance(schema, LongType) or isinstance(schema, DoubleType):
-            if distinct_set.issubset(nullIntegerSet):
-                output.append(path)
-    return output
+logger = logging.getLogger("gluejob")
+logging.basicConfig(level=logging.INFO)
 
-def drop_nulls(glueContext, frame, nullStringSet, nullIntegerSet, transformation_ctx) -> DynamicFrame:
-    nullColumns = _find_null_fields(frame.glue_ctx, frame.schema(), "", [], nullStringSet, nullIntegerSet, frame)
-    return DropFields.apply(frame=frame, paths=nullColumns, transformation_ctx=transformation_ctx)
 
-def sparkAggregate(glueContext, parentFrame, groups, aggs, transformation_ctx) -> DynamicFrame:
-    aggsFuncs = []
-    for column, func in aggs:
-        aggsFuncs.append(getattr(SqlFuncs, func)(column))
-    result = parentFrame.toDF().groupBy(*groups).agg(*aggsFuncs) if len(groups) > 0 else parentFrame.toDF().agg(*aggsFuncs)
-    return DynamicFrame.fromDF(result, glueContext, transformation_ctx)
+def find_null_like_columns(df_dynamic: DynamicFrame, null_string_set: Iterable[str], null_numeric_set: Iterable[int]) -> List[str]:
+    """Return list of column paths where values are only null-like according to provided sets.
 
-args = getResolvedOptions(sys.argv, ['JOB_NAME'])
-sc = SparkContext()
-glueContext = GlueContext(sc)
-spark = glueContext.spark_session
-job = Job(glueContext)
-job.init(args['JOB_NAME'], args)
+    This helper inspects top-level and nested struct fields. For performance,
+    limit the schema depth and avoid collecting very large distinct sets in
+    production; prefer statistical checks or data-quality rules.
+    """
+    df = df_dynamic.toDF()
+    schema = df.schema
+    null_cols: List[str] = []
 
-# Default ruleset used by all target nodes with data quality enabled
-DEFAULT_DATA_QUALITY_RULESET = """
-    Rules = [
-        ColumnCount > 0
-    ]
-"""
+    def _inspect_field(prefix: str, field_type):
+        if isinstance(field_type, StructType):
+            for f in field_type:
+                _inspect_field(f"{prefix}.{f.name}" if prefix else f.name, f.dataType)
+        elif isinstance(field_type, ArrayType) and isinstance(field_type.elementType, StructType):
+            _inspect_field(prefix, field_type.elementType)
+        elif isinstance(field_type, NullType):
+            null_cols.append(prefix)
+        else:
+            col_name = prefix.split(".")[-1]
+            distinct_vals = df.select(prefix).distinct().collect()
+            vals = set()
+            for row in distinct_vals:
+                v = row[col_name]
+                if isinstance(v, list):
+                    for it in v:
+                        vals.add(it.strip() if isinstance(it, str) else it)
+                elif isinstance(v, str):
+                    vals.add(v.strip())
+                else:
+                    vals.add(v)
 
-# Script generated for node Amazon S3
-AmazonS3_node1761566299551 = glueContext.create_dynamic_frame.from_options(format_options={"quoteChar": "\"", "withHeader": True, "separator": ",", "optimizePerformance": False}, connection_type="s3", format="csv", connection_options={"paths": ["s3://csvbucketdatabricks/ohlcv/"], "recurse": True}, transformation_ctx="AmazonS3_node1761566299551")
+            if isinstance(field_type, StringType):
+                if vals.issubset(set(null_string_set)):
+                    null_cols.append(prefix)
+            elif isinstance(field_type, (IntegerType, LongType, DoubleType)):
+                if vals.issubset(set(null_numeric_set)):
+                    null_cols.append(prefix)
 
-# Script generated for node Drop Duplicates
-DropDuplicates_node1761566469687 =  DynamicFrame.fromDF(AmazonS3_node1761566299551.toDF().dropDuplicates(), glueContext, "DropDuplicates_node1761566469687")
+    _inspect_field("", schema)
+    return null_cols
 
-# Script generated for node Drop Null Fields
-DropNullFields_node1761566477953 = drop_nulls(glueContext, frame=DropDuplicates_node1761566469687, nullStringSet={}, nullIntegerSet={}, transformation_ctx="DropNullFields_node1761566477953")
 
-# Script generated for node Aggregate
-Aggregate_node1761566516970 = sparkAggregate(glueContext, parentFrame = DropNullFields_node1761566477953, groups = ["open", "low"], aggs = [["high", "avg"]], transformation_ctx = "Aggregate_node1761566516970")
+def drop_null_fields(glue_context: GlueContext, frame: DynamicFrame, null_string_set=None, null_numeric_set=None, transformation_ctx: str = "DropNulls") -> DynamicFrame:
+    null_string_set = null_string_set or {"", "NULL", "null", None}
+    null_numeric_set = null_numeric_set or {None}
+    paths = find_null_like_columns(frame, null_string_set, null_numeric_set)
+    if paths:
+        logger.info("Dropping null-like fields: %s", paths)
+        return DropFields.apply(frame=frame, paths=paths, transformation_ctx=transformation_ctx)
+    return frame
 
-# Script generated for node Amazon S3
-EvaluateDataQuality().process_rows(frame=Aggregate_node1761566516970, ruleset=DEFAULT_DATA_QUALITY_RULESET, publishing_options={"dataQualityEvaluationContext": "EvaluateDataQuality_node1761565962041", "enableDataQualityResultsPublishing": True}, additional_options={"dataQualityResultsPublishing.strategy": "BEST_EFFORT", "observations.scope": "ALL"})
-AmazonS3_node1761566609719 = glueContext.write_dynamic_frame.from_options(frame=Aggregate_node1761566516970, connection_type="s3", format="csv", connection_options={"path": "s3://csvbucketdatabricks/processed_data/", "partitionKeys": []}, transformation_ctx="AmazonS3_node1761566609719")
 
-job.commit()
+def spark_aggregate(glue_context: GlueContext, parent_frame: DynamicFrame, groups: List[str], aggs: List[Tuple[str, str]], transformation_ctx: str) -> DynamicFrame:
+    agg_exprs = [getattr(F, func)(col).alias(f"{func}_{col}") for col, func in aggs]
+    df = parent_frame.toDF()
+    result = df.groupBy(*groups).agg(*agg_exprs) if groups else df.agg(*agg_exprs)
+    return DynamicFrame.fromDF(result, glue_context, transformation_ctx)
+
+
+def main():
+    args = getResolvedOptions(sys.argv, ["JOB_NAME"])  # extend as needed
+    sc = SparkContext()
+    glue_context = GlueContext(sc)
+    spark = glue_context.spark_session
+    job = Job(glue_context)
+    job.init(args["JOB_NAME"], args)
+
+    DEFAULT_DATA_QUALITY_RULESET = """
+        Rules = [
+            ColumnCount > 0
+        ]
+    """
+
+    # Read raw CSV from S3 (example path; replace with job arguments/config)
+    raw = glue_context.create_dynamic_frame.from_options(
+        format_options={"quoteChar": '"', "withHeader": True, "separator": ","},
+        connection_type="s3",
+        format="csv",
+        connection_options={"paths": ["s3://csvbucketdatabricks/ohlcv/"], "recurse": True},
+        transformation_ctx="ReadRaw",
+    )
+
+    deduped = DynamicFrame.fromDF(raw.toDF().dropDuplicates(), glue_context, "Deduped")
+
+    cleaned = drop_null_fields(glue_context, deduped)
+
+    aggregated = spark_aggregate(glue_context, parent_frame=cleaned, groups=["open", "low"], aggs=[("high", "avg")], transformation_ctx="Aggregate")
+
+    # Data quality evaluation
+    EvaluateDataQuality().process_rows(
+        frame=aggregated,
+        ruleset=DEFAULT_DATA_QUALITY_RULESET,
+        publishing_options={"dataQualityEvaluationContext": "DQContext", "enableDataQualityResultsPublishing": True},
+        additional_options={"dataQualityResultsPublishing.strategy": "BEST_EFFORT", "observations.scope": "ALL"},
+    )
+
+    # Write processed output
+    glue_context.write_dynamic_frame.from_options(
+        frame=aggregated,
+        connection_type="s3",
+        format="csv",
+        connection_options={"path": "s3://csvbucketdatabricks/processed_data/", "partitionKeys": []},
+        transformation_ctx="WriteProcessed",
+    )
+
+    job.commit()
+
+
+if __name__ == "__main__":
+    main()
