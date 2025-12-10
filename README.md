@@ -1,3 +1,118 @@
+---
+# AWS Serverless OHLCV Data Engine
+
+[![Python](https://img.shields.io/badge/Python-3.8%2B-blue)](https://www.python.org/)
+[![AWS Glue](https://img.shields.io/badge/AWS%20Glue-Serverless-orange)](https://aws.amazon.com/glue/)
+[![Athena](https://img.shields.io/badge/Athena-Serverless-purple)](https://aws.amazon.com/athena/)
+
+Overview
+--------
+This repository implements a production-ready, serverless data engine that ingests OHLCV time-series, performs ETL and data quality operations, catalogs data for querying, and exposes analytics to business users via QuickSight.
+
+System Architecture
+-------------------
+Mermaid (logical) diagram:
+
+```mermaid
+graph LR
+  API[External API: Twelve Data] --> Ingest(Ingestion: Lambda / Notebook)
+  Ingest --> Raw[S3 Raw Zone]
+  Raw --> Glue(AWS Glue ETL)
+  Glue --> Processed[S3 Processed Zone]
+  Processed --> Athena(Amazon Athena)
+  Athena --> QuickSight(Amazon QuickSight)
+  Glue --> Catalog(Glue Data Catalog)
+  subgraph Observability
+    CloudWatch[CloudWatch Logs & Metrics]
+    Catalog -- updates --> CloudWatch
+  end
+```
+
+Rendered architecture (PNG):
+
+![Architecture diagram](docs/assets/diagrams/image.png)
+
+Visual assets
+-------------
+- QuickSight dashboards: `docs/assets/dashboards/` (1.png, 2.png, 4.png, 6.png)
+- Glue-specific diagrams: `docs/assets/glue/` (gluejob.png, jobruns.png, monitoring_glue.png)
+- Monitoring screenshots: `docs/assets/monitoring/` (data_quality_checks.png, image.png, image copy.png)
+
+Project layout
+--------------
+```text
+aws-dataflow/
+├─ notebooks/                # exploratory notebooks and ingestion PoCs
+├─ src/
+│  └─ etl/
+│     └─ jobs/               # Glue job scripts (production-ready)
+├─ sql/
+│  └─ queries/               # Athena queries
+├─ docs/
+│  └─ assets/                # diagrams, dashboards, monitoring screenshots
+├─ requirements.txt
+└─ README.md
+```
+
+Component deep dive
+-------------------
+
+- Ingestion
+  - Source: Twelve Data (OHLCV). Implemented as notebooks for development and Lambda or scheduled job for production.
+  - Responsibilities: auth, retries, throttling, payload normalization, and partitioned writes to S3 raw zone.
+
+- ETL (AWS Glue)
+  - Schema enforcement and timestamp standardization (UTC ISO-8601).
+  - Deduplication strategy (instrument_id, timestamp, trade_id) using deterministic windows.
+  - Type casting, null handling and data-quality checks (Glue Data Quality, custom rules).
+  - Derived metrics: daily_return, pct_change, vwap; rollups: hourly/daily OHLC and volume aggregates.
+  - Output format: Parquet partitioned by date and symbol for efficient Athena reads.
+
+- Cataloging & Querying
+  - Glue Data Catalog kept in sync via Crawler or API updates.
+  - Athena queries under `sql/queries/` follow CTAS and partition-pruning best practices.
+
+- Visualization & Consumers
+  - QuickSight datasets connect to Athena. Dashboard exports are stored under `docs/assets/dashboards/` for documentation.
+
+- Observability
+  - CloudWatch collects Glue logs, custom metrics, and alarms. Monitoring screenshots live in `docs/assets/monitoring/`.
+
+Prerequisites & AWS permissions
+-------------------------------
+Example IAM permissions (scope least-privilege where possible):
+
+- S3: `s3:GetObject`, `s3:PutObject`, `s3:ListBucket`, `s3:DeleteObject`
+- Glue: `glue:CreateJob`, `glue:StartJobRun`, `glue:GetJobRun`, `glue:CreateCrawler`, `glue:GetTable`, `glue:UpdateTable`
+- Athena: `athena:StartQueryExecution`, `athena:GetQueryExecution`, `athena:GetQueryResults`
+- CloudWatch: `logs:CreateLogGroup`, `logs:CreateLogStream`, `logs:PutLogEvents`, `cloudwatch:PutMetricAlarm`
+
+Developer workflow
+------------------
+
+1. Configure environment: set S3 bucket names and Glue database in environment variables or a parameter store.
+2. Validate transformations locally with unit tests and small Spark runs.
+3. Deploy Glue job (via console, CLI, or IaC):
+
+```bash
+aws glue start-job-run --job-name my-glue-job --arguments '--S3_INPUT=s3://mybucket/raw/ --S3_OUTPUT=s3://mybucket/processed/'
+```
+
+4. Monitor job state in CloudWatch and validate output in S3 and Athena.
+
+Maintenance & contributions
+---------------------------
+- Keep visual assets organized under `docs/assets/` by purpose (dashboards, glue, monitoring).
+- Add unit tests for Glue transforms under `tests/` and update `requirements.txt` for dev dependencies.
+
+Contact / next steps
+--------------------
+If you want, I can:
+- convert the canonical architecture PNG to SVG and replace `docs/assets/diagrams/image.png` for crisper docs;
+- generate a `docs/assets/README.md` that documents naming conventions and where to add new images;
+- scaffold unit tests for the Glue job transformations.
+
+---
 # AWS Dataflow — Serverless ETL & Analytics Pipeline
 
 # AWS Serverless OHLCV Data Engine
