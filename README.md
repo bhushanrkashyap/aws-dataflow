@@ -5,7 +5,6 @@
 [![Python](https://img.shields.io/badge/Python-3.8%2B-blue)](https://www.python.org/)
 [![AWS Glue](https://img.shields.io/badge/AWS%20Glue-Serverless-orange)](https://aws.amazon.com/glue/)
 [![Athena](https://img.shields.io/badge/Athena-Serverless-purple)](https://aws.amazon.com/athena/)
-[![License: MIT](https://img.shields.io/badge/License-MIT-green)](LICENSE)
 
 Overview
 --------
@@ -30,6 +29,23 @@ graph LR
 
 Note: visual assets exist under `docs/assets/diagrams` and `docs/assets/dashboards` for reference and reporting screenshots.
 
+Architecture (Rendered)
+----------------------
+
+The canonical architecture diagram is embedded below (PNG). If your renderer supports Mermaid, the textual diagram above will also render.
+
+![Architecture diagram](docs/assets/diagrams/image.png)
+
+QuickSight Dashboard Examples
+-----------------------------
+
+Small thumbnails exported from QuickSight for documentation:
+
+![Daily price change](docs/assets/dashboards/1.png)
+![Daily volume](docs/assets/dashboards/2.png)
+![Monthly volume](docs/assets/dashboards/4.png)
+![Price vs volume](docs/assets/dashboards/6.png)
+
 Project structure (cleaned)
 ---------------------------
 ```text
@@ -46,7 +62,7 @@ aws-dataflow/
 │     ├─ dashboards/         # QuickSight exports and screenshots
 │     ├─ diagrams/           # Architecture diagrams (png/svg)
 │     └─ monitoring/         # CloudWatch dashboard images and logs
-├─ scripts/                  # utility scripts (restructure, deploy helpers)
+├─ (scripts removed)         # utility scripts directory removed per repo hygiene
 ├─ requirements.txt
 └─ README.md
 ```
