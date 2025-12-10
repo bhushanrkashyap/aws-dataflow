@@ -1,6 +1,6 @@
 # AWS Dataflow — Serverless ETL & Analytics Pipeline
 
-![Architecture diagram](docs/images/architecture_diagram.svg)
+![Architecture diagram](architecture/image.png)
 
 This repository demonstrates a fully automated, serverless ETL and analytics pipeline built on AWS. The pipeline ingests OHLCV financial time-series data from external APIs, processes and validates the data with AWS Glue, catalogs it, and provides analytics via Amazon Athena and QuickSight — all while maintaining monitoring and observability with CloudWatch.
 
@@ -26,7 +26,7 @@ Top-level folders and purpose:
 ## Quick start
 
 1. Open the ingestion notebook at `1.ingestion/ingestion.ipynb` to run or preview sample ingestion.
-2. The Glue job implementation is in `2.glue/scripts/gluejob.py` and the job definition is `2.glue/scripts/myfirstjob.json`.
+2. The Glue job implementation is in `2.glue/scripts/gluejob.py`.
 3. Run Athena queries from `3.athena/athena_queries.sql` against the prepared datasets.
 
 Notes:
