@@ -1,17 +1,17 @@
-# 📊AWS Data Pipeline
-A simple, serverless AWS pipeline that ingests, cleans, and visualizes **financial OHLCV (Open , High , Low , Close , Volume)data**.
-<p align="center"><img src="./architecture/architecture.png" width="700" alt="Architecture diagram"/></p>
+# AWS Dataflow — Serverless ETL & Analytics Pipeline
 
+![Architecture diagram](docs/images/architecture_diagram.svg)
 
----
+This repository demonstrates a fully automated, serverless ETL and analytics pipeline built on AWS. The pipeline ingests OHLCV financial time-series data from external APIs, processes and validates the data with AWS Glue, catalogs it, and provides analytics via Amazon Athena and QuickSight — all while maintaining monitoring and observability with CloudWatch.
 
-## Table of contents
-
-- [Overview](#ohclv-aws-data-pipeline)
-- [Repository structure](#repository-structure)
-- [Quick start](#quick-start)
-- [Components](#components)
-- [Contributing](#contributing)
+**Table of contents**
+- **Architecture:** Overview and diagram
+- **Data Ingestion:** Databricks notebook + Twelve Data API
+- **AWS Glue:** ETL jobs, data quality, and Glue Catalog
+- **Athena:** SQL queries and sample insights (`3.athena/athena_queries.sql`)
+- **QuickSight:** Example visualizations
+- **Monitoring:** CloudWatch logs, metrics, dashboards
+- **Files of interest:** `1.ingestion/ingestion.ipynb`, `2.glue/scripts/gluejob.py`, `3.athena/athena_queries.sql`
 
 ## Repository structure
 
@@ -20,7 +20,7 @@ Top-level folders and purpose:
 - `1.ingestion/` — ingestion notebooks and scripts (data collection)
 - `2.glue/` — AWS Glue job code and job definitions
 - `3.athena/` — Athena queries and example SQL
-- `4.quicksuite/` — QuickSight dashboards and assets
+- `4.quicksight/` — QuickSight dashboards and assets
 - `architecture/` — architecture diagram and notes
 
 ## Quick start
