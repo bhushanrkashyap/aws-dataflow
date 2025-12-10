@@ -73,7 +73,15 @@ graph LR
 		CloudWatch[CloudWatch Logs & Metrics]
 		Catalog -- updates --> CloudWatch
 	end
-```
+# AWS Serverless OHLCV Data Engine
+
+[![Python](https://img.shields.io/badge/Python-3.8%2B-blue)](https://www.python.org/)
+[![AWS Glue](https://img.shields.io/badge/AWS%20Glue-Serverless-orange)](https://aws.amazon.com/glue/)
+[![Athena](https://img.shields.io/badge/Athena-Serverless-purple)](https://aws.amazon.com/athena/)
+
+Overview
+--------
+This repository implements a production-ready, serverless data engine that ingests OHLCV time-series, performs ETL and data-quality operations, catalogs data for querying, and exposes analytics to business users via QuickSight.
 
 Architecture (PNG)
 ------------------
@@ -121,7 +129,3 @@ How to run (quick)
 aws glue start-job-run --job-name my-glue-job --arguments '--S3_INPUT=s3://mybucket/raw/ --S3_OUTPUT=s3://mybucket/processed/'
 ```
 
-Contact / next steps
---------------------
-- I can convert `docs/assets/diagrams/image.png` to `image.svg` for crisper diagrams.
-- I can also sweep the `docs/` folder to ensure all READMEs render correctly and then push the cleanup commit.
